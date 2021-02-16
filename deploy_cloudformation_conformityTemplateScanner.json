@@ -64,6 +64,22 @@
                 }
             }
         },
+        "LambdaSnsInvoke": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+                "Action": "lambda:InvokeFunction",
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "LambdaFunction",
+                        "Arn"
+                    ]
+                },
+                "SourceArn": {
+                    "Ref": "CodeCommitSnsTopic"
+                },
+                "Principal": "sns.amazonaws.com"
+            }
+        },
         "LambdaIAMRole": {
             "Type": "AWS::IAM::Role",
             "Properties": {
