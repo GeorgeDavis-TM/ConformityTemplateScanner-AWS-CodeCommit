@@ -1,36 +1,46 @@
 # Trend Micro Cloud One Conformity Scanner for AWS CodeCommit
 
-This AWS CodeCommit repo sets up an integration with AWS CodeCommit and Trend Micro Cloud One Conformity Template Scanner. 
+This GitHub repo sets up an integration with AWS CodeCommit and Trend Micro Cloud One Conformity Template Scanner. 
 
 Everytime there is a commit pushed to the configured AWS CodeCommit repo, the commit is parsed for supported file formats (`json`, `yaml`, or `yml`) and checks if the file is an AWS CloudFormation template.
 
-If it is an AWS CloudFormation template, it posts the file to the *Cloud One Conformity Template Scanner API* to retrieve scan results and tag Issues with the scan results on S3 for CodePipeline consumption.
+If it is an AWS CloudFormation template, it posts the file to the *Cloud One Conformity Template Scanner API* to retrieve scan results and store the file in an S3 Bucket, tagging them with the scan results. You could then use the S3 Bucket to setup a CodePipeline pipeline to build, test and deploy CloudFormation resources.
 
 <!-- TODO: Add an AWS Architecture diagram here -->
 
 ### Deploy CloudFormation template
 ---
 
-An AWS CloudFormation template to deploy an AWS Lambda, S3 Bucket and required resources.
+An AWS CloudFormation template to deploy an AWS Lambda Function, SNS Topic, S3 Bucket and required resources.
 
 ### Required fields
 
-
- - #### **CC_API_KEY**
+ - #### **ConformityApiKey**
         
 An API key is required to authenticate requests to the Template Scanner API. You can create an API Key to access Cloud One Conformity APIs by following Conformity documentation provided here - https://www.cloudconformity.com/help/public-api/api-keys.html.
         
 > For more information on Cloud One Conformity APIs, please refer to the API reference documentation available here - https://cloudone.trendmicro.com/docs/conformity/api-reference/
 
- - #### **S3_BUCKET_NAME**
+ - #### **S3BucketName**
 
 Enter an S3 Bucket Name you would like the scanned CloudFormation templates are tagged and stored onto.
 
- - #### **S3_OBJECT_KEY**
+ - #### **S3ObjectKey**
 
 Enter an S3 Object Key (parent folder) within the selected S3 Bucket.
 
-> The **Outputs** section of the newly created CloudFormation Stack contains the S3 Bucket Name that is used on the AWS Lambda function.
+> The **Outputs** section of the newly created CloudFormation Stack contains the S3 Bucket Name, the S3 Object Key path, the ARN of the AWS Lambda function and the SNS Topic used to trigger on CodeCommit updates.
+
+### What the CloudFormation Template automates?
+
+- Create an SNS Topic to trigger the AWS Lambda `ConformityTemplateScanner` Function
+- Create a new notification rule with AWS SNS as Target with `"Updated"` events as triggers for notification under the `<Your-AWS-CodeCommit-Repository> > Settings > Notifications`
+
+- Configure AWS Lambda Function for AWS SNS  
+    - On the AWS Lambda function, ensure the Environment variables as set with `CC_API_KEY`, `S3_BUCKET_NAME`, `S3_OBJECT_KEY`
+- Add an SNS Trigger for the AWS Lambda function
+- Create an S3 Bucket to store the scanned CloudFormation templates and their scan results as tags. You can use this S3 Bucket to listen and trigger CodePipeline builds
+
 
 ### Cloud One Conformity Template Scanner
 ---
@@ -42,6 +52,7 @@ Lambda function written in Python to configure the AWS CodeCommit repository via
 
 > For more information on AWS CodeCommit APIs, please refer to the API reference documentation available here - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/codecommit.html
 
+
 ### Sample CloudFormation Template
 ---
 
@@ -51,17 +62,7 @@ The `sample_cloudformation_template.json` file is provided to upload to a config
 ## How to deploy
 ---
 
-- Run the CloudFormation template on AWS. Retrieve the `S3 Bucket Name` from the `Outputs` tab.
-
-- Configure AWS CodeCommit Repository for AWS SNS
-    - Navigate to your `AWS CodeCommit Repository > Settings > Notifications`
-    - Create a new Notification rule with AWS SNS as Target with `"Updated"` events as triggers for notification
-    - Create a new AWS SNS Target topic and click "Submit"
-
-- Configure AWS Lambda Function for AWS SNS  
-    - On the AWS Lambda function, ensure the Environment variables as set with `CC_API_KEY`, `S3_BUCKET_NAME`, `S3_OBJECT_KEY`
-    - Add a Trigger for the AWS Lambda function and choose the SNS topic we created a few moments ago and ensure "Enable trigger" is `enabled`
-    - Click on "Add" to finalize changes to the Lambda function
+- Run the CloudFormation template on AWS in the same region as the CodeCommit repository. Retrieve the `S3BucketName` from the `Outputs` tab.
 
 - Commit the `sample_cloudformation_template.json` to the configured AWS CodeCommit repo.
 
