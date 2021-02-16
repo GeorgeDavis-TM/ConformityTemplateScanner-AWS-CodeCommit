@@ -1,0 +1,360 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Trend Micro Conformity Template Scanner - AWS CodeCommit App",
+    "Parameters": {
+        "ApiGatewayName": {
+            "Type": "String",
+            "Default": "AwsCodeCommitConformityTemplateScanner"
+        },
+        "ApiGatewayDescription": {
+            "Type": "String",
+            "Default": "Trend Micro Conformity Template Scanner - AWS CodeCommit App"
+        },
+        "ApiGatewayStageName": {
+            "Type": "String",
+            "Default": "v1"
+        },
+        "ApiGatewayPath": {
+            "Type": "String",
+            "Default": "awsCodeCommitConformityTemplateScanner"
+        },
+        "LambdaFunctionName": {
+            "Type": "String",
+            "Default": "AwsCodeCommitConformityTemplateScanner"
+        },
+        "LambdaFunctionDescription": {
+            "Type": "String",
+            "Default": "Trend Micro Conformity Template Scanner & AWS CodeCommit API Integration"
+        },
+        "ConformityApiKey": {
+            "Type": "String",
+            "Default": ""
+        },
+        "S3ObjectKey": {
+            "Type": "String",
+            "Default": "cloudformation-templates"
+        },
+        "CodeCommitArn": {
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "ApiGateway": {
+            "Type": "AWS::ApiGateway::RestApi",
+            "Properties": {
+                "Name": {
+                    "Ref": "ApiGatewayName"
+                },
+                "Description": {
+                    "Ref": "ApiGatewayDescription"
+                }
+            }
+        },
+        "ApiGatewayResource": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "ApiGateway"
+                },
+                "ParentId": {
+                    "Fn::GetAtt": [
+                        "ApiGateway",
+                        "RootResourceId"
+                    ]
+                },
+                "PathPart": {
+                    "Ref": "ApiGatewayPath"
+                }
+            }
+        },
+        "ApiGatewayPostMethod": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "ApiGateway"
+                },
+                "ResourceId": {
+                    "Ref": "ApiGatewayResource"
+                },
+                "HttpMethod": "POST",
+                "AuthorizationType": "NONE",
+                "Integration": {
+                    "IntegrationHttpMethod": "POST",
+                    "Type": "AWS_PROXY",
+                    "Uri": {
+                        "Fn::Sub": [
+                            "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArn}/invocations",
+                            {
+                                "lambdaArn": {
+                                    "Fn::GetAtt": [
+                                        "LambdaFunction",
+                                        "Arn"
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "MethodResponses": [
+                    {
+                        "StatusCode": 200,
+                        "ResponseModels": {
+                            "application/json": "Empty"
+                        }
+                    }
+                ]
+            }
+        },
+        "ApiGatewayDeployment": {
+            "Type": "AWS::ApiGateway::Deployment",
+            "DependsOn": [
+                "ApiGatewayPostMethod"
+            ],
+            "Properties": {
+                "RestApiId": {
+                    "Ref": "ApiGateway"
+                },
+                "StageName": {
+                    "Ref": "ApiGatewayStageName"
+                }
+            }
+        },
+        "LambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": { 
+                "Code": {
+                    "ZipFile": ""
+                },
+                "Description": {
+                    "Ref": "LambdaFunctionDescription"
+                },
+                "FunctionName": {
+                    "Ref": "LambdaFunctionName"
+                },
+                "Handler": "index.lambda_handler",
+                "MemorySize": 128,
+                "Role": {
+                    "Fn::GetAtt": [
+                        "LambdaIAMRole",
+                        "Arn"
+                    ]
+                },
+                "Runtime": "python3.7",
+                "Timeout": 40,
+                "Environment": {
+                    "Variables": {
+                        "CC_API_KEY": {
+                            "Ref": "ConformityApiKey"
+                        },
+                        "S3_BUCKET_NAME": {
+                            "Ref": "ConformityS3Bucket"
+                        },
+                        "S3_OBJECT_KEY": {
+                            "Ref": "S3ObjectKey"
+                        }
+                    }
+                }
+            }
+        },
+        "LambdaApiGatewayInvoke": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+                "Action": "lambda:InvokeFunction",
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "LambdaFunction",
+                        "Arn"
+                    ]
+                },
+                "SourceArn": {
+                    "Fn::Sub": "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*"
+                },
+                "Principal": "apigateway.amazonaws.com"
+            }
+        },
+        "LambdaIAMRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "lambda.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "logs:CreateLogGroup",
+                                        "logs:CreateLogStream",
+                                        "logs:PutLogEvents"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": [
+                                        {
+                                            "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Action": [
+                                        "s3:GetObject",
+                                        "s3:GetObjectAcl",
+                                        "s3:PutObject",
+                                        "s3:PutObjectAcl"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": [
+                                        "arn:aws:s3:::conformitytemplatescannerpublicbucket",
+                                        "arn:aws:s3:::conformitytemplatescannerpublicbucket/*",
+                                        "arn:aws:s3:::conformitytemplatescannerbucket",
+                                        "arn:aws:s3:::conformitytemplatescannerbucket/*"
+                                    ]
+                                },
+                                {
+                                    "Action": "codecommit:*",
+                                    "Effect": "Allow",
+                                    "Resource": "arn:aws:codecommit:us-east-2:666402644145:aws-codecommit-code-repo"
+                                }
+                            ]
+                        },
+                        "PolicyName": "aws-codecommit-conformitytemplatescanner"
+                    }
+                ]
+            }
+        },
+        "LambdaLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+                "LogGroupName": {
+                    "Fn::Sub": "/aws/lambda/${LambdaFunctionName}"
+                }
+            }
+        },
+        "CodeCommitNotificationRule": {
+            "Type": "AWS::CodeStarNotifications::NotificationRule",
+            "Properties": {
+                "DetailType": "BASIC",
+                "EventTypeIds": [
+                    "codecommit-repository-branches-and-tags-updated"
+                ],
+                "Name": "aws-codecommit-notification-rule",
+                "Resource": {
+                    "Ref": "CodeCommitArn"
+                },  
+                "Status": "ENABLED",
+                "Tags": {
+                    "Owner": "georged"
+                },
+                "Targets": [ 
+                    {
+                        "Ref": "CodeCommitSnsTopic"
+                    }
+                ]
+            }
+        },
+        "CodeCommitSnsSubscription": {
+            "Type" : "AWS::SNS::Subscription",
+            "Properties" : {
+                "Endpoint" : {
+                    "Ref": "LambdaFunction"
+                },
+                "Protocol" : "lambda",
+                "TopicArn" : {
+                    "Ref": "CodeCommitSnsTopic"
+                }
+            }
+        },
+        "CodeCommitSnsTopic": {
+            "Type": "AWS::SNS::Topic",
+            "Properties": {
+                "DisplayName": "CodeCommitSnsTopic",
+                "TopicName": "CodeCommitSnsTopic",
+                "Subscription" : [
+                    {
+                        "Ref": "CodeCommitSnsSubscription"
+                    }
+                ],
+                "KmsMasterKeyId": {
+                    "Fn::Join" : [ 
+                        "", [ 
+                            "arn:aws:kms:",
+                            { "Ref" : "AWS::Region" },
+                            ":",
+                            { "Ref" : "AWS::AccountId" },
+                            ":alias/aws/sns"
+                        ] 
+                    ]
+                },
+                "Tags": [
+                    {
+                        "Key": "Owner",
+                        "Value": "TrendMicro"
+                    },
+                    {
+                        "Key": "Product",
+                        "Value": "CloudOneConformity"
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "CodeCommitSnsTopic"
+                    }
+                ]
+            }
+        },
+        "ConformityS3Bucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+                "VersioningConfiguration": {
+                    "Status": "Suspended"
+                },
+                "AccessControl": "Private",
+                "BucketEncryption": {
+                    "ServerSideEncryptionConfiguration": [
+                        {
+                            "ServerSideEncryptionByDefault": {
+                                "SSEAlgorithm": "AES256"
+                            }
+                        }
+                    ]
+                },
+                "Tags": [
+                    {
+                        "Key": "Owner",
+                        "Value": "TrendMicro"
+                    },
+                    {
+                        "Key": "Product",
+                        "Value": "CloudOneConformity"
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "cloudoneconformitytemplatescannerbucket"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "AppUrl": {
+            "Value": {
+                "Fn::Sub": "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${ApiGatewayStageName}/${ApiGatewayPath}"
+            }
+        }
+    }
+}
