@@ -228,6 +228,9 @@
         "ConformityS3Bucket": {
             "Type": "AWS::S3::Bucket",
             "Properties": {
+                "BucketName": {
+                    "Ref": "S3BucketName"
+                },
                 "VersioningConfiguration": {
                     "Status": "Enabled"
                 },
@@ -249,12 +252,6 @@
                     {
                         "Key": "Product",
                         "Value": "CloudOneConformity"
-                    },
-                    {
-                        "Key": "Name",
-                        "Value": {
-                            "Ref": "S3BucketName"
-                        }
                     }
                 ]
             }
