@@ -70,3 +70,21 @@ The `sample_cloudformation_template.json` file is provided to upload to a config
 
 - You can now plug in AWS CodePipeline to accept s3::PutObject events to trigger a pipeline build, test for checks (tags) and deploy CloudFormation templates based on Organization's risk acceptance criteria.
     - The supported Cloud One Conformity tags are `EXTREME`, `VERY_HIGH`, `HIGH`, `MEDIUM` and `LOW`
+
+
+### Related Projects
+
+| GitHub Repository Name  | Description |
+| ------------- | ------------- |
+| [cloudOneConformityTemplateScanner](https://github.com/GeorgeDavis-TM/cloudOneConformityTemplateScanner) | Similar to this repository but catered to GitHub Code repositories |
+
+## Contributing
+
+If you encounter a bug or think of a useful feature, or find something confusing in the docs, please
+**[Create a New Issue](https://github.com/GeorgeDavis-TM/ConformityTemplateScanner-AWS-CodeCommit/issues/new)**
+
+ **PS.: Make sure to use the [Issue Template](https://github.com/GeorgeDavis-TM/ConformityTemplateScanner-AWS-CodeCommit/tree/master/.github/ISSUE_TEMPLATE)**
+
+We :heart: pull requests. If you'd like to fix a bug or contribute to a feature or simply correct a typo, please feel free to do so.
+
+If you're thinking of adding a new feature, consider opening an issue first to discuss it to ensure it aligns to the direction of the project (and potentially save yourself some time!).
